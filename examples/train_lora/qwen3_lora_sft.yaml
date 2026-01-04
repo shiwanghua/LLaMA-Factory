@@ -1,24 +1,35 @@
 ### model
-model_name_or_path: Qwen/Qwen3-4B-Instruct-2507
+model_name_or_path: /home/ubisec/swh/models/deepseek-ai-DeepSeek-R1-0528-Qwen3-8B
+# model_name_or_path: /home/ubisec/swh/train_models/DS-R1-0528-Qwen3-8B_cpp_completion_20250609_lora-dpo_model7
 trust_remote_code: true
 
 ### method
 stage: sft
 do_train: true
 finetuning_type: lora
-lora_rank: 8
 lora_target: all
+lora_rank: 128
+lora_alpha: 32
+lora_dropout: 0
+flash_attn: fa2
+max_grad_norm: 1.0
+use_rslora: true
+# use_unsloth: true
+# optim: adamw_8bit
+# quantization_bit: 4
 
 ### dataset
-dataset: identity,alpaca_en_demo
-template: qwen3_nothink
-cutoff_len: 2048
+dataset: c_cpp_completion_sft_train_data_20250609_random800 #c_cpp_completion_sft_train_data_20250609_800 #identity,alpaca_en_demo
+template: qwen3 #llama3
+cutoff_len: 16384 #2048
+
 max_samples: 1000
-preprocessing_num_workers: 16
-dataloader_num_workers: 4
+overwrite_cache: true
+preprocessing_num_workers: 4 #16
+dataloader_num_workers: 2 #4
 
 ### output
-output_dir: saves/qwen3-4b/lora/sft
+output_dir: /home/ubisec/swh/train_models/DS-R1-0528-Qwen3-8B_cpp_completion_20250609_lora-sft_adapter15
 logging_steps: 10
 save_steps: 500
 plot_loss: true
@@ -29,8 +40,8 @@ report_to: none  # choices: [none, wandb, tensorboard, swanlab, mlflow]
 ### train
 per_device_train_batch_size: 1
 gradient_accumulation_steps: 8
-learning_rate: 1.0e-4
-num_train_epochs: 3.0
+learning_rate: 5.0e-6 # 1.0e-4
+num_train_epochs: 6.0 # 训练总轮数
 lr_scheduler_type: cosine
 warmup_ratio: 0.1
 bf16: true

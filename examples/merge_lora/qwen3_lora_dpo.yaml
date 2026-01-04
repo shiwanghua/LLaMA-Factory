@@ -1,0 +1,13 @@
+### Note: DO NOT use quantized model or quantization_bit when merging lora adapters
+
+### model
+model_name_or_path: /home/ubisec/swh/models/deepseek-ai-DeepSeek-R1-0528-Qwen3-8B
+adapter_name_or_path: /home/ubisec/swh/train_models/DS-R1-0528-Qwen3-8B_cpp_completion_20250609_lora-llamaf-dpo-orpo-adapter-25/checkpoint-4000
+template: qwen3
+trust_remote_code: true
+
+### export
+export_dir: /home/ubisec/swh/train_models/DS-R1-0528-Qwen3-8B_cpp_completion_20250609_lora-llamaf-orpo_model12_cp4000
+export_size: 5
+export_device: cpu  # choices: [cpu, auto]
+export_legacy_format: false

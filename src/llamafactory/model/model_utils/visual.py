@@ -200,15 +200,6 @@ def patch_target_modules(
 
 
 _register_composite_model(
-    model_type="dots_ocr",
-    projector_key="vision_tower.merger",
-    vision_model_keys=["vision_tower"],
-    language_model_keys=["model", "lm_head"],
-    lora_conflict_keys=["merger"],
-)
-
-
-_register_composite_model(
     model_type="gemma3",
 )
 
@@ -257,11 +248,6 @@ _register_composite_model(
 
 
 _register_composite_model(
-    model_type="kimi_vl",
-)
-
-
-_register_composite_model(
     model_type="llama4",
     vision_model_keys=["vision_model"],
 )
@@ -298,10 +284,8 @@ _register_composite_model(
     lora_conflict_keys=["audio_projection_layer"],
 )
 
-
 _register_composite_model(
     model_type="mistral3",
-    projector_key="model.multi_modal_projector",
 )
 
 
@@ -349,33 +333,6 @@ _register_composite_model(
     language_model_keys=["language_model", "lm_head"]
     if is_transformers_version_greater_than("4.52.0")
     else ["model", "lm_head"],
-    lora_conflict_keys=["patch_embed"],
-)
-
-
-_register_composite_model(
-    model_type="qwen3_vl",
-    projector_key="visual.merger",
-    vision_model_keys=["visual.patch_embed", "visual.blocks", "visual.deepstack_merger_list"],
-    language_model_keys=["language_model", "lm_head"],
-    lora_conflict_keys=["patch_embed"],
-)
-
-
-_register_composite_model(
-    model_type="qwen3_vl_moe",
-    projector_key="visual.merger",
-    vision_model_keys=["visual.patch_embed", "visual.blocks", "visual.deepstack_merger_list"],
-    language_model_keys=["language_model", "lm_head"],
-    lora_conflict_keys=["patch_embed"],
-)
-
-
-_register_composite_model(
-    model_type="qwen3_omni_moe_thinker",
-    projector_key="visual.merger",
-    vision_model_keys=["visual.patch_embed", "visual.blocks", "visual.deepstack_merger_list", "audio_tower"],
-    language_model_keys=["model", "lm_head"],
     lora_conflict_keys=["patch_embed"],
 )
 

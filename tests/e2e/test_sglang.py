@@ -39,7 +39,6 @@ MESSAGES = [
 ]
 
 
-@pytest.mark.runs_on(["cuda"])
 @pytest.mark.skipif(not is_sglang_available(), reason="SGLang is not installed")
 def test_chat():
     r"""Test the SGLang engine's basic chat functionality."""
@@ -49,7 +48,6 @@ def test_chat():
     print(response.response_text)
 
 
-@pytest.mark.runs_on(["cuda"])
 @pytest.mark.skipif(not is_sglang_available(), reason="SGLang is not installed")
 def test_stream_chat():
     r"""Test the SGLang engine's streaming chat functionality."""

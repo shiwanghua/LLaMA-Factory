@@ -19,9 +19,9 @@
 
 import json
 import os
-from collections.abc import Callable, Mapping
+from collections.abc import Mapping
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, Optional, Union
+from typing import TYPE_CHECKING, Any, Callable, Optional, Union
 
 import torch
 from transformers import Trainer
@@ -100,15 +100,12 @@ def create_modelcard_and_push(
     if model_args.use_unsloth:
         kwargs["tags"] = kwargs["tags"] + ["unsloth"]
 
-    if model_args.use_kt:
-        kwargs["tags"] = kwargs["tags"] + ["ktransformers"]
-
     if not training_args.do_train:
         pass
     elif training_args.push_to_hub:
         trainer.push_to_hub(**kwargs)
     else:
-        Trainer.create_model_card(trainer, license="other", **kwargs)  # prevent from connecting to hub
+        trainer.create_model_card(license="other", **kwargs)  # prevent from connecting to hub
 
 
 def create_ref_model(

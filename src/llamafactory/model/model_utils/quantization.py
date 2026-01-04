@@ -83,7 +83,6 @@ def configure_quantization(
     config: "PretrainedConfig",
     tokenizer: "PreTrainedTokenizer",
     model_args: "ModelArguments",
-    is_trainable: bool,
     init_kwargs: dict[str, Any],
 ) -> None:
     r"""Priority: PTQ-quantized (train/infer) > AutoGPTQ (export) > On-the-fly quantization (train/infer)."""
@@ -94,25 +93,9 @@ def configure_quantization(
         quantization_config: dict[str, Any] = getattr(config, "quantization_config", None)
         quant_method = quantization_config.get("quant_method", "")
 
-        if quant_method not in (QuantizationMethod.MXFP4, QuantizationMethod.FP8) and (
-            is_deepspeed_zero3_enabled() or is_fsdp_enabled()
-        ):
+        if quant_method != QuantizationMethod.MXFP4 and (is_deepspeed_zero3_enabled() or is_fsdp_enabled()):
             # mxfp4 will dequant the model weights
             raise ValueError("DeepSpeed ZeRO-3 or FSDP is incompatible with PTQ-quantized models.")
-
-        if quant_method == QuantizationMethod.MXFP4:
-            from transformers import Mxfp4Config
-
-            quant_config = Mxfp4Config(dequantize=True)
-            init_kwargs["quantization_config"] = quant_config
-            init_kwargs["ignore_mismatched_sizes"] = True
-
-        if quant_method == QuantizationMethod.FP8:
-            from transformers import FineGrainedFP8Config
-
-            quant_config = FineGrainedFP8Config(dequantize=True)
-            init_kwargs["quantization_config"] = quant_config
-            init_kwargs["ignore_mismatched_sizes"] = True
 
         if quant_method == QuantizationMethod.GPTQ:
             check_version("gptqmodel>=2.0.0", mandatory=True)
@@ -177,6 +160,7 @@ def configure_quantization(
                     bnb_4bit_quant_type=model_args.quantization_type,
                     bnb_4bit_quant_storage=model_args.compute_dtype,  # crucial for fsdp+qlora
                 )
+                print(f"init_kwargs['quantization_config']={init_kwargs['quantization_config']}")
             else:
                 raise ValueError("Bitsandbytes only accepts 4-bit or 8-bit quantization.")
 

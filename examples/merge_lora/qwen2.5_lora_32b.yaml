@@ -1,0 +1,13 @@
+### Note: DO NOT use quantized model or quantization_bit when merging lora adapters
+
+### model
+model_name_or_path: /home/ubisec/cjr/models/mergekit/DTCoderAgent1116
+adapter_name_or_path: /home/ubisec/cjr/sft/qwen2.5_32b_sft_1211_output/checkpoint-1850
+template: qwen
+trust_remote_code: true
+
+### export
+export_dir: /home/ubisec/swh/train_models/qwen2.5_32b_sft_1211_cp1850
+export_size: 5
+export_device: cpu  # choices: [cpu, auto]
+export_legacy_format: false

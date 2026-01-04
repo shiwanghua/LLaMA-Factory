@@ -43,22 +43,8 @@ if TYPE_CHECKING:
 
     from ..hparams import ModelArguments
 
-if is_transformers_version_greater_than("4.57.0"):
-    from transformers.models.qwen3_omni_moe import modeling_qwen3_omni_moe
-
 
 logger = logging.get_logger(__name__)
-
-
-def patch_qwen3_omni_moe_thinker_text_sparse_moe_block():
-    if is_transformers_version_greater_than("4.57.0") and not is_transformers_version_greater_than("4.58.0"):
-        from .model_utils.moe import Qwen3OmniMoeThinkerTextSparseMoeBlock
-
-        logger.warning_rank0(
-            "You are using transformers with 4.x version, the Qwen3OmniMoeThinkerTextSparseMoeBlock will have some issues about deepspeed zero2 and fsdp2 training, so that we patched this model to avoid it. Transformers v5.0.0rc0 has fixed the issue, you can also try to update the transformers to using qwen3_omni. See more information on https://github.com/hiyouga/LLaMA-Factory/issues/9628."
-        )
-
-        modeling_qwen3_omni_moe.Qwen3OmniMoeThinkerTextSparseMoeBlock = Qwen3OmniMoeThinkerTextSparseMoeBlock
 
 
 def patch_tokenizer(tokenizer: "PreTrainedTokenizer", model_args: "ModelArguments") -> None:
@@ -119,7 +105,7 @@ def patch_config(
     configure_attn_implementation(config, model_args)
     configure_rope(config, model_args)
     configure_longlora(config, model_args, is_trainable)
-    configure_quantization(config, tokenizer, model_args, is_trainable, init_kwargs)
+    configure_quantization(config, tokenizer, model_args, init_kwargs)
     configure_moe(config, model_args, is_trainable)
     configure_visual_model(config)
     configure_packing(model_args, is_trainable)
@@ -138,32 +124,31 @@ def patch_config(
     if getattr(config, "model_type", None) == "kimi_vl" and is_trainable:
         setattr(config.text_config, "topk_method", "greedy")
 
-    architectures = getattr(config, "architectures", None)
-    if isinstance(architectures, list) and "InternVLChatModel" in architectures:
+    if "InternVLChatModel" in getattr(config, "architectures", []):
         raise ValueError(
             "Please download the internvl models in a Hugging Face–compatible format "
             "(for example, https://huggingface.co/OpenGVLab/InternVL3-8B-hf)."
         )
 
-    if isinstance(architectures, list) and "LlavaLlamaForCausalLM" in architectures:
+    if "LlavaLlamaForCausalLM" in getattr(config, "architectures", []):
         raise ValueError("Please download llava models with hf-compatible format: https://huggingface.co/llava-hf")
 
     if getattr(config, "model_type", None) == "internlm3" and not is_transformers_version_greater_than("4.47.1"):
         raise RuntimeError("InternLM3 model requires transformers>=4.47.1, please upgrade it.")
 
-    if getattr(config, "model_type", None) == "qwen3_omni_moe":
-        patch_qwen3_omni_moe_thinker_text_sparse_moe_block()
-
     # deepspeed zero3 is not compatible with low_cpu_mem_usage
     init_kwargs["low_cpu_mem_usage"] = model_args.low_cpu_mem_usage and (not is_deepspeed_zero3_enabled())
 
-    # fsdp/deepspeed zero3 does not need device map
-    if not (is_deepspeed_zero3_enabled() or is_fsdp_enabled()) and init_kwargs["low_cpu_mem_usage"]:
-        if "device_map" not in init_kwargs and model_args.device_map:
-            init_kwargs["device_map"] = model_args.device_map  # device map requires low_cpu_mem_usage=True
+    # do not cast data type of the model deepspeed zero3 without qlora
+    if not (is_deepspeed_zero3_enabled() and model_args.quantization_bit is None):
+        init_kwargs["torch_dtype"] = model_args.compute_dtype
 
-        if init_kwargs.get("device_map", None) == "auto":
-            init_kwargs["offload_folder"] = model_args.offload_folder
+        if init_kwargs["low_cpu_mem_usage"] and not is_fsdp_enabled():  # fsdp does not need device map
+            if "device_map" not in init_kwargs and model_args.device_map:
+                init_kwargs["device_map"] = model_args.device_map  # device map requires low_cpu_mem_usage=True
+
+            if init_kwargs.get("device_map", None) == "auto":
+                init_kwargs["offload_folder"] = model_args.offload_folder
 
 
 def patch_model(
@@ -190,12 +175,7 @@ def patch_model(
         prepare_valuehead_model(model)
 
     if model_args.resize_vocab:
-        resize_embedding_layer(
-            model,
-            tokenizer,
-            new_special_tokens_config=getattr(model_args, "_special_token_descriptions", None),
-            init_special_tokens=model_args.init_special_tokens,
-        )
+        resize_embedding_layer(model, tokenizer)
 
     if is_trainable:
         if getattr(model.config, "model_type", None) == "gemma3n":
@@ -231,23 +211,9 @@ def patch_valuehead_model(model: "AutoModelForCausalLMWithValueHead") -> None:
         if isinstance(self.pretrained_model, PeftModel):
             self.pretrained_model.create_or_update_model_card(output_dir)
 
-    def get_rope_index_func(self: "AutoModelForCausalLMWithValueHead"):
-        if isinstance(self.pretrained_model, PeftModel):
-            base_model = self.pretrained_model.base_model.model
-        else:
-            base_model = self.pretrained_model
-
-        if base_model and hasattr(base_model, "get_rope_index"):
-            return base_model.get_rope_index
-        elif base_model and hasattr(base_model, "model") and hasattr(base_model.model, "get_rope_index"):
-            return base_model.model.get_rope_index
-        else:
-            return None
-
     ignore_modules = [name for name, _ in model.named_parameters() if "pretrained_model" in name]
     setattr(model, "_keys_to_ignore_on_save", ignore_modules)
     setattr(model, "tie_weights", MethodType(tie_weights, model))
     setattr(model, "get_input_embeddings", MethodType(get_input_embeddings, model))
     setattr(model, "get_output_embeddings", MethodType(get_output_embeddings, model))
-    setattr(model, "get_rope_index", get_rope_index_func(model))
     setattr(model, "create_or_update_model_card", MethodType(create_or_update_model_card, model))

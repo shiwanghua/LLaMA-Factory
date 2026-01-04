@@ -1,0 +1,108 @@
+### model
+model_name_or_path: /home/swh/models/deepseek-ai-DeepSeek-R1-0528-Qwen3-8B
+trust_remote_code: true
+
+### method
+stage: dpo
+do_train: true
+finetuning_type: lora
+lora_rank: 128
+lora_alpha: 32
+lora_dropout: 0.05
+lora_target: all
+pref_beta: 0.05
+pref_loss: orpo  # choices: [sigmoid (dpo), orpo, simpo]
+use_dora: false
+use_rslora: true
+enable_liger_kernel: true
+flash_attn: fa2
+optim: rmsprop
+
+### dataset
+dataset: c_cpp_completion_dpo_train_data_20250609_1600_random800
+template: qwen3
+cutoff_len: 8192 # 2048
+max_samples: 20000
+overwrite_cache: true
+preprocessing_num_workers: 16
+dataloader_num_workers: 4
+
+### output
+output_dir: /home/swh/train_models/DS-R1-0528-Qwen3-8B_cpp_completion_20250609_lora-llamaf-dpo-orpo-adapter-24
+logging_steps: 10
+save_steps: 500
+plot_loss: true
+overwrite_output_dir: true
+save_only_model: false
+report_to: none  # choices: [none, wandb, tensorboard, swanlab, mlflow]
+
+### train
+per_device_train_batch_size: 1
+gradient_accumulation_steps: 1 #8
+learning_rate: 8.0e-5 # 5.0e-6
+loraplus_lr_ratio: 12.0
+num_train_epochs: 6.0 # 训练总轮数
+lr_scheduler_type: cosine
+warmup_ratio: 0.1
+bf16: true
+ddp_timeout: 180000000
+resume_from_checkpoint: null
+
+### eval
+# eval_dataset: dpo_en_demo
+# val_size: 0.05
+# per_device_eval_batch_size: 1
+# eval_strategy: steps
+# eval_steps: 500
+
+# DISABLE_VERSION_CHECK=1  CUDA_VISIBLE_DEVICES=0,1 accelerate launch --main_process_port 0 --config_file ./examples/train_lora/fsdp_config.yaml ./src/train.py \
+#  --stage dpo --do_train  --model_name_or_path  \
+#  --dataset  'c_cpp_completion_dpo_train_data_20250609_1600_random800' --dataset_dir  data/ --template qwen3  --finetuning_type lora \
+#  --lora_rank 128  --lora_alpha 32 --lora_dropout 0.05 --lora_target all  \
+#  --output_dir  --use_dora False --use_rslora True \
+#  --pref_loss orpo --pref_beta 0.05  --overwrite_cache --overwrite_output_dir --cutoff_len 8192 --enable_liger_kernel  \
+#  --flash_attn fa2 --preprocessing_num_workers 16 --per_device_train_batch_size 1 --per_device_eval_batch_size 1 \
+#  --gradient_accumulation_steps 1 --lr_scheduler_type cosine  --logging_steps 10  --warmup_ratio 0.1  --save_steps 500  --eval_steps 500  --eval_strategy steps  \
+#  --load_best_model_at_end    --learning_rate 8e-5 --loraplus_lr_ratio 12.0 --num_train_epochs 6.0  --val_size 0.05 --ddp_timeout 180000000  --plot_loss  --bf16 --optim rmsprop > log/DS-R1-0528-Qwen3-8B_cpp_completion_20250609_lora-llamaf-dpo-orpo-24_20250822.log
+
+
+
+
+#  DISABLE_VERSION_CHECK=1 CUDA_VISIBLE_DEVICES=0,1,2,3 accelerate launch --config_file ./config/fsdp_config.yaml ./LLaMA-Factory/src/train.py   \
+#  --stage dpo     --do_train  --model_name_or_path /home/ubisec/codeqwen/merged_kit_qwen_model_3/  \
+#  --dataset 'dpo_zh_data'     --dataset_dir  /home/ubisec/data/DPO_data     --template qwen     --finetuning_type lora  \
+#  --lora_rank 16     --lora_alpha 32     --lora_dropout 0.05     --lora_target all     --output_dir ./sft/dpo_qwen_all_1   \
+#  --use_dora True  --optim paged_adamw_8bit  --pref_loss orpo --pref_beta 0.1 \
+#  --overwrite_cache     --overwrite_output_dir     --cutoff_len 8194   \
+#  --enable_liger_kernel     --flash_attn fa2     --preprocessing_num_workers 16     --per_device_train_batch_size 1   \
+#  --per_device_eval_batch_size 1     --gradient_accumulation_steps 1     --lr_scheduler_type cosine     --logging_steps 10  \
+#  --warmup_ratio 0.1     --save_steps 1000     --eval_steps 500    --eval_strategy steps    \
+#  --load_best_model_at_end     --learning_rate 5e-6     --loraplus_lr_ratio 12.0     --num_train_epochs 2.0     --val_size 0.05  \
+#  --ddp_timeout 180000000     --plot_loss     --bf16
+
+# 第一版
+# DISABLE_VERSION_CHECK=1  CUDA_VISIBLE_DEVICES=0,1,2,3 accelerate launch  --config_file ./examples/train_lora/fsdp_config.yaml ./src/train.py --stage dpo  \
+#    --do_train  --model_name_or_path /home/ubisec/swh/models/deepseek-ai-DeepSeek-R1-0528-Qwen3-8B --dataset  'c_cpp_completion_dpo_train_data_20250609' \
+#    --dataset_dir  data/ --template qwen3  --finetuning_type lora  --lora_rank 32     --lora_alpha 32     --lora_dropout 0.05     --lora_target all   \
+#    --output_dir /home/ubisec/swh/train_models/DS-R1-0528-Qwen3-8B_cpp_completion_20250609_lora-dpo_adapter1 --use_dora False  --pref_loss orpo --pref_beta 0.1 \
+#    --overwrite_cache     --overwrite_output_dir     --cutoff_len 8194    --enable_liger_kernel     --flash_attn fa2     --preprocessing_num_workers 16  \
+#    --per_device_train_batch_size 1    --per_device_eval_batch_size 1     --gradient_accumulation_steps 1     --lr_scheduler_type cosine     --logging_steps 10  \
+#    --warmup_ratio 0.1     --save_steps 1000     --eval_steps 500    --eval_strategy steps     --load_best_model_at_end     --learning_rate 5e-6     --loraplus_lr_ratio 12.0  \
+#    --num_train_epochs 2.0     --val_size 0.05   --ddp_timeout 180000000     --plot_loss     --bf16  --optim adamw_torch
+
+# DISABLE_VERSION_CHECK=1  CUDA_VISIBLE_DEVICES=0,1 accelerate launch --main_process_port 0 --config_file ./examples/train_lora/fsdp_config.yaml ./src/train.py \
+#  --stage dpo --do_train  --model_name_or_path /home/swh/models/deepseek-ai-DeepSeek-R1-0528-Qwen3-8B \
+#  --dataset  'c_cpp_completion_dpo_train_data_20250609_1600_random800' --dataset_dir  data/ --template qwen3  --finetuning_type lora \
+#  --lora_rank 128  --lora_alpha 32 --lora_dropout 0.05 --lora_target all  \
+#  --output_dir /home/swh/train_models/DS-R1-0528-Qwen3-8B_cpp_completion_20250609_lora-llamaf-dpo-orpo-adapter-24 --use_dora False --use_rslora True \
+#  --pref_loss orpo --pref_beta 0.05  --overwrite_cache --overwrite_output_dir --cutoff_len 8192 --enable_liger_kernel  \
+#  --flash_attn fa2 --preprocessing_num_workers 16 --per_device_train_batch_size 1 --per_device_eval_batch_size 1 \
+#  --gradient_accumulation_steps 1 --lr_scheduler_type cosine  --logging_steps 10  --warmup_ratio 0.1  --save_steps 500  --eval_steps 500  --eval_strategy steps  \
+#  --load_best_model_at_end    --learning_rate 8e-5 --loraplus_lr_ratio 12.0 --num_train_epochs 6.0  --val_size 0.05 --ddp_timeout 180000000  --plot_loss  --bf16 --optim rmsprop > log/DS-R1-0528-Qwen3-8B_cpp_completion_20250609_lora-llamaf-dpo-orpo-24_20250822.log
+
+
+
+ # --optim {adamw_torch,adamw_torch_fused,adamw_torch_xla,adamw_torch_npu_fused,adamw_apex_fused,adafactor,adamw_anyprecision,adamw_torch_4bit,\
+ # adamw_torch_8bit,ademamix,sgd,adagrad,adamw_bnb_8bit,adamw_8bit,ademamix_8bit,lion_8bit,lion_32bit,paged_adamw_32bit,paged_adamw_8bit,paged_ademamix_32bit,\
+ # paged_ademamix_8bit,paged_lion_32bit,paged_lion_8bit,rmsprop,rmsprop_bnb,rmsprop_bnb_8bit,rmsprop_bnb_32bit,galore_adamw,galore_adamw_8bit,galore_adafactor,\
+ # galore_adamw_layerwise,galore_adamw_8bit_layerwise,galore_adafactor_layerwise,lomo,adalomo,grokadamw,schedule_free_radam,schedule_free_adamw,schedule_free_sgd,apollo_adamw,apollo_adamw_layerwise}

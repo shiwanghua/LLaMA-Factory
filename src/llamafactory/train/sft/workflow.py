@@ -21,7 +21,6 @@ from ...data import SFTDataCollatorWith4DAttentionMask, get_dataset, get_templat
 from ...extras.constants import IGNORE_INDEX
 from ...extras.logging import get_logger
 from ...extras.misc import calculate_tps
-from ...extras.packages import is_transformers_version_greater_than
 from ...extras.ploting import plot_loss
 from ...model import load_model, load_tokenizer
 from ..trainer_utils import create_modelcard_and_push
@@ -50,7 +49,10 @@ def run_sft(
     tokenizer = tokenizer_module["tokenizer"]
     template = get_template_and_fix_tokenizer(tokenizer, data_args)
     dataset_module = get_dataset(template, model_args, data_args, training_args, stage="sft", **tokenizer_module)
+    # import torch
+    # model_args.device_map={'': torch.device(type='cuda', index=1)}
     model = load_model(tokenizer, model_args, finetuning_args, training_args.do_train)
+    print("SFT-device:", next(model.parameters()).device, f'model_args={model_args}, finetuning_args={finetuning_args}')
 
     if getattr(model, "is_quantized", False) and not training_args.do_train:
         setattr(model, "_hf_peft_config_loaded", True)  # hack here: make model compatible with prediction
@@ -68,12 +70,6 @@ def run_sft(
 
     # Metric utils
     metric_module = {}
-    if model_args.use_kt:
-        if training_args.predict_with_generate:
-            raise NotImplementedError("`predict_with_generate` is not supported in KTransformers SFT yet.")
-        elif finetuning_args.compute_accuracy:
-            raise NotImplementedError("`compute_accuracy` is not supported in KTransformers SFT yet.")
-
     if training_args.predict_with_generate:
         metric_module["compute_metrics"] = ComputeSimilarity(tokenizer=tokenizer)
     elif finetuning_args.compute_accuracy:
@@ -82,52 +78,21 @@ def run_sft(
 
     # Keyword arguments for `model.generate`
     gen_kwargs = generating_args.to_dict(obey_generation_config=True)
-
-    # Compatible with Transformers v4 and Transformers v5
-    if is_transformers_version_greater_than("4.58.0"):
-        extra_ids = getattr(tokenizer, "additional_special_tokens_ids", None)
-        if not isinstance(extra_ids, list):
-            extra_special_tokens = getattr(tokenizer, "_extra_special_tokens", [])
-            string_tokens = [str(t) for t in extra_special_tokens]
-            extra_ids = tokenizer.convert_tokens_to_ids(string_tokens)
-        all_eos_ids = [tokenizer.eos_token_id] + [i for i in extra_ids if i != -1]
-        unique_eos_ids = list(dict.fromkeys(all_eos_ids))
-        gen_kwargs["eos_token_id"] = unique_eos_ids
-    else:
-        gen_kwargs["eos_token_id"] = [tokenizer.eos_token_id] + tokenizer.additional_special_tokens_ids
+    gen_kwargs["eos_token_id"] = [tokenizer.eos_token_id] + tokenizer.additional_special_tokens_ids
     gen_kwargs["pad_token_id"] = tokenizer.pad_token_id
 
     # Initialize our Trainer
-    if model_args.use_kt:
-        from ktransformers.sft.lora import KTrainer  # type: ignore
-        from ktransformers.util.globals import GLOBAL_CONFIG  # type: ignore
-
-        GLOBAL_CONFIG._config["mod"] = "sft"
-
-        trainer = KTrainer(
-            model=model,
-            args=training_args,
-            tokenizer=tokenizer_module,
-            data_collator=data_collator,
-            callbacks=callbacks,
-            **dataset_module,
-            **metric_module,
-        )
-        trainer.model_accepts_loss_kwargs = False
-        model.config.use_cache = False
-
-    else:
-        trainer = CustomSeq2SeqTrainer(
-            model=model,
-            args=training_args,
-            finetuning_args=finetuning_args,
-            data_collator=data_collator,
-            callbacks=callbacks,
-            gen_kwargs=gen_kwargs,
-            **dataset_module,
-            **tokenizer_module,
-            **metric_module,
-        )
+    trainer = CustomSeq2SeqTrainer(
+        model=model,
+        args=training_args,
+        finetuning_args=finetuning_args,
+        data_collator=data_collator,
+        callbacks=callbacks,
+        gen_kwargs=gen_kwargs,
+        **dataset_module,
+        **tokenizer_module,
+        **metric_module,
+    )
 
     # Training
     if training_args.do_train:

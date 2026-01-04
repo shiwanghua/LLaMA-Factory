@@ -24,6 +24,7 @@ from ...extras.ploting import plot_loss
 from ...hparams import ModelArguments
 from ...model import load_model, load_tokenizer
 from ..trainer_utils import create_modelcard_and_push, create_ref_model
+from .trainer import CustomDPOTrainer
 
 
 if TYPE_CHECKING:
@@ -43,7 +44,10 @@ def run_dpo(
     tokenizer = tokenizer_module["tokenizer"]
     template = get_template_and_fix_tokenizer(tokenizer, data_args)
     dataset_module = get_dataset(template, model_args, data_args, training_args, stage="rm", **tokenizer_module)
+    # import torch
+    # model_args.device_map[''] = torch.device('cuda:1')
     model = load_model(tokenizer, model_args, finetuning_args, training_args.do_train)
+    print("DPO-device:", next(model.parameters()).device, f'model_args={model_args}, \n\nfinetuning_args={finetuning_args}') # \n\ndata_args={data_args}, \n\ntraining_args={training_args},
 
     data_collator = PairwiseDataCollatorWithPadding(
         template=template,
@@ -61,16 +65,6 @@ def run_dpo(
             ref_model = create_ref_model(model_args, finetuning_args)
     else:
         ref_model = None
-
-    if model_args.use_kt:
-        from ktransformers.util.globals import GLOBAL_CONFIG  # type: ignore
-
-        from .ktrainer import KDPOTrainer as CustomDPOTrainer
-
-        GLOBAL_CONFIG._config["mod"] = "sft"
-
-    else:
-        from .trainer import CustomDPOTrainer
 
     # Initialize our Trainer
     trainer = CustomDPOTrainer(

@@ -16,7 +16,7 @@ import json
 import os
 from collections.abc import Generator
 from contextlib import contextmanager
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, Optional
 
 from transformers.utils import is_torch_npu_available
 
@@ -81,7 +81,7 @@ class WebChatModel(ChatModel):
     def __init__(self, manager: "Manager", demo_mode: bool = False, lazy_init: bool = True) -> None:
         self.manager = manager
         self.demo_mode = demo_mode
-        self.engine: BaseEngine | None = None
+        self.engine: Optional[BaseEngine] = None
 
         if not lazy_init:  # read arguments from command line
             super().__init__()
@@ -197,9 +197,9 @@ class WebChatModel(ChatModel):
         lang: str,
         system: str,
         tools: str,
-        image: Any | None,
-        video: Any | None,
-        audio: Any | None,
+        image: Optional[Any],
+        video: Optional[Any],
+        audio: Optional[Any],
         max_new_tokens: int,
         top_p: float,
         temperature: float,
